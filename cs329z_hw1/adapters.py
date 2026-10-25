@@ -61,7 +61,7 @@ def run_priority(email: Email, lm: LMCallable) -> dict:
     * The function does not raise and does not modify ``email``.
     * Live: at least 85% agreement with tests/fixtures/priority_gold.json.
     """
-    from cs329z_hw1.pipelines.email_priority import classify_priority
+    from cs329z_hw1.pipelines.P1_priority import classify_priority
 
     return classify_priority(email, lm)
 
@@ -81,7 +81,7 @@ def run_daily_digest(emails: list[Email], lm: LMCallable) -> str:
       site that email is about; it contains no term listed for the gold
       ignore emails.
     """
-    from cs329z_hw1.pipelines.daily_digest import write_daily_digest
+    from cs329z_hw1.pipelines.P2_daily_digest import write_daily_digest
 
     return write_daily_digest(emails, lm)
 
@@ -96,7 +96,7 @@ def run_bm25_build(docs: list[str]) -> Any:
     back to ``run_bm25_search``. The index over the archive must build in
     under 15 seconds.
     """
-    from cs329z_hw1.pipelines.bm25 import BM25Index
+    from cs329z_hw1.pipelines.P3_bm25 import BM25Index
 
     return BM25Index(docs)
 
@@ -145,7 +145,9 @@ def run_email_qa(
       contain an accepted answer, and the ``support`` of every correct
       answer includes at least one gold email.
     """
-    raise NotImplementedError
+    from cs329z_hw1.pipelines.P4_email_qa import answer_question
+
+    return answer_question(question, search, lm)
 
 
 # ======================================================================

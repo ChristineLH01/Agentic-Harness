@@ -6,7 +6,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from cs329z_hw1.llm import BudgetExceeded, OutputTruncated
-from cs329z_hw1.pipelines.email_priority import classify_priority
+from cs329z_hw1.pipelines.P1_priority import classify_priority
 from cs329z_hw1.types import Email, LMCallable
 
 CLASSIFY_WORKERS = 8  # concurrent calls for priority classification
