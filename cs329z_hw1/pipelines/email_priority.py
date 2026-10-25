@@ -116,6 +116,7 @@ def render_email(email: Email) -> str:
     )
 
 def _date_with_weekday(date: str) -> str:
+    """Reformat the date with the weekday, or "(unknown)" if it can't be parsed."""
     try:
         parsed = datetime.strptime(date[:19], "%Y-%m-%dT%H:%M:%S")
     except ValueError:
