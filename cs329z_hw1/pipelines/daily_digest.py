@@ -6,13 +6,13 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
 
 from cs329z_hw1.llm import BudgetExceeded, OutputTruncated
-from cs329z_hw1.pipelines.P1_priority import classify_priority
+from cs329z_hw1.pipelines.priority import classify_priority
 from cs329z_hw1.types import Email, LMCallable
 
 CLASSIFY_WORKERS = 8  # concurrent calls for priority classification
 URGENT_EXCERPT_CHARS = 800  # body length shown for an urgent item
 NORMAL_EXCERPT_CHARS = 200  # body length shown for a normal item
-WORD_LIMIT = 275  # limit = 300, ask for 275 to avoid model overshoot.
+WORD_LIMIT = 300  
 
 SYSTEM_PROMPT = """\
 Given one day's emails, write the morning digest for a busy employee, the \
