@@ -5,9 +5,14 @@ or an error goes back to the model as a user message. A reply with no tool call
 is the final answer, except an empty one, one that only announces an action
 ("I'll look that up.") or one that leaks the model's built-in call format: the
 loop sends it back as an error counted as malformed.
+
 Before each model call, compaction.py shortens the context if the call would not
 fit config.context_budget (Problem 11). A session with config.memory_dir starts
 with its saved facts at the end of the system prompt (memory.py, Problem 12).
+
+In confirm mode, interactive.py decides which calls wait for the user's approval,
+and before each model call a message the user sent mid-run joins the context
+(Problem 13).
 """
 
 from __future__ import annotations
@@ -16,6 +21,7 @@ import copy
 import re
 
 from cs329z_hw1.agent.compaction import RESULT_SHARE, compact, payload, shorten
+from cs329z_hw1.agent.interactive import denial
 from cs329z_hw1.agent.memory import MEMORY_SHARE, MemoryStore
 from cs329z_hw1.agent.tool_registry import ToolRegistry
 from cs329z_hw1.agent.tool_protocol import format_tool_result, parse_response, render_tools
@@ -72,7 +78,7 @@ class AgentSession:
         self.context: list[dict] = []
         self.summary = ""
 
-    # Used from Problem 13 (interactive) on.
+    # Switches between "confirm" and "auto" between sends (Problem 13).
     def set_mode(self, mode: str) -> None:
         self.mode = mode
 
@@ -87,6 +93,12 @@ class AgentSession:
                 return self._stop("token_budget", f"Stopped after using {tokens} tokens without a final answer.")
 
             turns += 1
+            # Steering: a message the user sent while the agent was working joins this call.
+            # Compaction keeps it, but does not take it for the start of a new turn.
+            steer = self.config.user.pending_message() if self.config.user is not None else None
+            if steer:
+                self._add("user", steer, type="user", content=steer)
+                self.context[-1]["steer"] = True
             messages = self._messages()
             sent = count_message_tokens(messages)
             try:
@@ -145,7 +157,8 @@ class AgentSession:
     def _run(self, call) -> str:
         """Run one tool call, show its result to the model, and return its status."""
         self.transcript.append({"type": "tool_call", "name": call.name, "args": call.args})
-        result = self.registry.execute(call.name, call.args)
+        # In confirm mode the user may deny the call (interactive.py); a denied call does not run.
+        result = denial(self.registry, call, self.mode, self.config.user) or self.registry.execute(call.name, call.args)
         # A result too long for the context is cut before the model or the transcript sees it
         result = ToolResult(result.status, shorten(result.content, self.config.context_budget // RESULT_SHARE))
         self._add("user", format_tool_result(call.name, result),

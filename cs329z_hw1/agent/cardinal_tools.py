@@ -6,7 +6,7 @@
 - Terminal tool: run_terminal, over the provided sandbox, with the output policy
   in terminal.py (P10).
 - Memory tools: remember and recall, over the store in memory.py (P12).
-- Tools of later problems: ask_user (P13).
+- ask_user, which puts a question to config.user (P13).
 """
 
 from __future__ import annotations
@@ -74,7 +74,12 @@ DESCRIPTIONS = {
         "keywords. Use it when the user refers to something about themselves that the Memory section "
         "does not show."
     ),
-    "ask_user": "Ask the user a question and get their answer. Use it when the request is unclear.",
+    "ask_user": (
+        "Ask the user one short question and return their answer. Use it when a request can mean "
+        "different things and the answer depends on which, for example \"Do you mean the expense "
+        "policy from March or the one it replaced?\", instead of guessing. Do not ask for facts "
+        "you can look up."
+    ),
 }
 
 ######## The email tools wrap the Part 1 pipelines ########
@@ -174,7 +179,7 @@ def cardinal_tools(config, aux_lm) -> list:
     def ask_user(question: str) -> str:
         if config.user is None:
             raise RuntimeError("No user is available to answer questions.")
-        return config.user.ask(question)
+        return config.user.ask(question) or "The user gave no answer."
 
     fns = {"search_emails": search_emails, "read_email": read_email, "email_qa": email_qa,
            "daily_digest": daily_digest, "search_docs": search_docs, "read_doc": read_doc,

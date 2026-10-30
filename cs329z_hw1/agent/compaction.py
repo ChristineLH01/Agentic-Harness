@@ -9,9 +9,10 @@ as soon as the call fits:
 3. Past turns are replaced by a summary that aux_lm writes, which keeps every
    requirement and constraint the user stated.
 4. The current turn drops its oldest steps.
-Never compacted away: the system prompt, the current user message, and the newest
-reply with its tool result, which must reach the model verbatim. A long tool result is
-also cut when it arrives (shorten), so one result can never fill the budget alone.
+Never compacted away: the system prompt, the current user message, the current turn's
+steering messages, and the newest reply with its tool result, which
+must reach the model verbatim. A long tool result is also cut when it arrives (shorten), 
+so one result can never fill the budget alone.
 """
 
 from __future__ import annotations
@@ -54,14 +55,19 @@ def payload(system: str, summary: str, context: list[dict]) -> list[dict]:
 def compact(system: str, summary: str, context: list[dict], budget: int, aux_lm) -> str:
     """Shorten context in place until the next call fits budget, and return the
     summary to use. Each context entry is {"role", "content", "event"}, where
-    event is its transcript event; final answers also have "answer": True."""
+    event is its transcript event; final answers also have "answer": True and
+    steering messages "steer": True."""
     def fits() -> bool:
         return count_message_tokens(payload(system, summary, context)) <= budget
 
-    current = max(i for i, e in enumerate(context) if e["event"]["type"] == "user")
+    # The current turn starts at this send's user message; a steering message does not start one.
+    current = max(i for i, e in enumerate(context) if e["event"]["type"] == "user" and not e.get("steer"))
+    # The newest reply and what follows it (its tool result, an error, a steering message)
+    # must reach the model verbatim, so steps 1 and 4 stop before it.
+    fresh = max([current] + [i for i, e in enumerate(context) if e["event"]["type"] == "assistant"])
 
-    # 1. Old tool results become stubs, oldest first. The newest entry stays as it is.
-    for e in context[:-1]:
+    # 1. Old tool results become stubs, oldest first.
+    for e in context[:fresh]:
         if fits():
             return summary
         if e["event"]["type"] == "tool_result" and not e.get("stub"):
@@ -74,18 +80,21 @@ def compact(system: str, summary: str, context: list[dict], budget: int, aux_lm)
         if i is None:
             break
         del context[i]
-        current -= 1
+        current, fresh = current - 1, fresh - 1
 
     # 3. Past turns become a summary written by aux_lm.
     if not fits() and current > 0:
         summary = _summarize(summary, context[:current], aux_lm, budget // SUMMARY_SHARE)
         del context[:current]
-        current = 0
+        current, fresh = 0, fresh - current
 
-    # 4. The current turn drops its oldest steps, keeping its user message and the
-    # newest reply with its result (newest tool call + tool result).
-    while not fits() and current + 1 < len(context) - 2:
-        del context[current + 1]
+    # 4. The current turn drops its oldest steps, keeping its user messages.
+    while not fits():
+        i = next((i for i in range(current + 1, fresh) if context[i]["event"]["type"] != "user"), None)
+        if i is None:
+            break
+        del context[i]
+        fresh -= 1
     return summary if fits() else ""  # last resort: drop the summary too
 
 
