@@ -3,8 +3,9 @@
 - Email tools, built on the Part 1 code: search_emails and read_email,
   email_qa and daily_digest.
 - Document tools: search_docs and read_doc, over the index in search_docs.py (P9).
-- Tools of later problems: run_terminal (P10), remember and recall (P12), and
-  ask_user (P13).
+- Terminal tool: run_terminal, over the provided sandbox, with the output policy
+  in terminal.py (P10).
+- Tools of later problems: remember and recall (P12), and ask_user (P13).
 """
 
 from __future__ import annotations
@@ -13,6 +14,7 @@ import functools
 
 from cs329z_hw1 import data
 from cs329z_hw1.agent.search_docs import doc_index
+from cs329z_hw1.agent.terminal import run_command
 from cs329z_hw1.cardinal import CARDINAL_TOOLS, cardinal_spec
 from cs329z_hw1.pipelines.daily_digest import write_daily_digest
 from cs329z_hw1.pipelines.bm25 import BM25Index
@@ -50,7 +52,24 @@ DESCRIPTIONS = {
         "Announcements and memos often change older policies: when documents disagree, "
         "follow the one with the newest date."
     ),
-    "run_terminal": "Run a shell command in a sandboxed workspace and return its output.",
+    "run_terminal": (
+        "Run one bash command in a sandboxed workspace and return its exit code, stdout and stderr. "
+        "The workspace holds emails.jsonl, the whole email archive with one JSON object per email "
+        "(id, thread_id, reply_to, from, to, date, subject, body), and docs/, the company documents. "
+        "Use it for exact counts and computations, which the search tools cannot give. "
+        "There is no network. Write longer scripts as python3 -c '...' (standard library only). "
+        "Long output is cut, and the whole output is saved to a file whose path the result gives"
+    ),
+    "run_terminal": (
+        "Run one bash command in a sandboxed workspace and return its exit code, stdout and stderr. "
+        "The workspace holds emails.jsonl, the email archive with one JSON object per line (id, "
+        "thread_id, reply_to, from, to, date, subject, body; dates are UTC, like 2001-06-01T00:03:01Z), "
+        "and docs/, the company documents. Use it for exact counts and computations over all emails. "
+        "Only common tools such as python3, grep, awk, sed, sort, uniq, wc and jq are allowed, with no "
+        "network. $(...), backticks, << and variable assignments are rejected, so write scripts as "
+        "python3 -c '...' (standard library only). Long output is cut, and the whole output is saved "
+        "to a file whose path the result gives."
+    ),
     "remember": "Save a fact to long-term memory so that later conversations can use it.",
     "recall": "Search long-term memory for facts saved earlier.",
     "ask_user": "Ask the user a question and get their answer. Use it when the request is unclear.",
@@ -144,6 +163,10 @@ def cardinal_tools(config, aux_lm) -> list:
     def daily_digest(date: str) -> str:
         return write_daily_digest(data.emails_on(date), aux_lm)
 
+    # Runs in config.workspace; terminal.py decides what the model sees of the output.
+    def run_terminal(cmd: str) -> str:
+        return run_command(cmd, config.workspace, config.terminal_timeout, config.context_budget)
+
     # Asks config.user, and fails when the session has no user.
     def ask_user(question: str) -> str:
         if config.user is None:
@@ -152,7 +175,8 @@ def cardinal_tools(config, aux_lm) -> list:
 
     # Tools without an implementation yet get the _not_ready stand-in.
     fns = {"search_emails": search_emails, "read_email": read_email, "email_qa": email_qa,
-           "daily_digest": daily_digest, "search_docs": search_docs, "read_doc": read_doc, "ask_user": ask_user}
+           "daily_digest": daily_digest, "search_docs": search_docs, "read_doc": read_doc,
+           "run_terminal": run_terminal, "ask_user": ask_user}
     return [cardinal_spec(name, DESCRIPTIONS[name], fns.get(name) or _not_ready(name)) for name in CARDINAL_TOOLS]
 
 
