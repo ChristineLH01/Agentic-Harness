@@ -5,14 +5,16 @@
 - Document tools: search_docs and read_doc, over the index in search_docs.py (P9).
 - Terminal tool: run_terminal, over the provided sandbox, with the output policy
   in terminal.py (P10).
-- Tools of later problems: remember and recall (P12), and ask_user (P13).
+- Memory tools: remember and recall, over the store in memory.py (P12).
+- Tools of later problems: ask_user (P13).
 """
 
 from __future__ import annotations
 
 import functools
 
-from cs329z_hw1 import data, sandbox
+from cs329z_hw1 import data
+from cs329z_hw1.agent.memory import MemoryStore
 from cs329z_hw1.agent.search_docs import doc_index
 from cs329z_hw1.agent.terminal import run_command
 from cs329z_hw1.cardinal import CARDINAL_TOOLS, cardinal_spec
@@ -55,13 +57,23 @@ DESCRIPTIONS = {
     "run_terminal": (
         "Run one bash command in a sandboxed workspace and return its exit code, stdout and stderr. "
         "The workspace holds emails.jsonl, the email archive with one JSON object per line (id, "
-        "thread_id, reply_to, from, to, date, subject, body), and docs/, the company documents. " ""
+        "thread_id, reply_to, from, to, date, subject, body), and docs/, the company documents. "
         "Use it for exact counts and computations, which the search tools cannot give. "
         "There is no network. Write longer scripts as python3 -c '...' (standard library only). "
         "Long output is cut, and the whole output is saved to a file whose path the result gives."
     ),
-    "remember": "Save a fact to long-term memory so that later conversations can use it.",
-    "recall": "Search long-term memory for facts saved earlier.",
+    "remember": (
+        "Save one fact to your persistent memory, which is shared across sessions: a new session "
+        "starts with the saved facts and knows nothing else from earlier sessions. Save what the user "
+        "tells you about themselves or asks you to keep: their team or role, ids such as a cost center, "
+        "what they mean by a term, and how they want answers. Write one full sentence with the exact "
+        "names and numbers, such as \"The user is on the Firmware team.\""
+    ),
+    "recall": (
+        "Search your persistent memory, the facts saved with remember in this and other sessions, by "
+        "keywords. Use it when the user refers to something about themselves that the Memory section "
+        "does not show."
+    ),
     "ask_user": "Ask the user a question and get their answer. Use it when the request is unclear.",
 }
 
@@ -133,10 +145,11 @@ def read_doc(doc_id: str, start_line: int = 1) -> str:
             f"{w['text']}\n\n{more}")
 
 
-def _not_ready(name: str):
-    """A stand-in for a tool of a later problem. Calling it gives a tool_error."""
+def _unavailable(name: str):
+    """A stand-in for a tool this session cannot use, such as remember without a
+    memory_dir. Calling it gives a tool_error."""
     def fn(**args):
-        raise NotImplementedError(f"{name} is not available yet.")
+        raise RuntimeError(f"{name} is not available in this session.")
     return fn
 
 ######## Assemble the toolset ######## 
@@ -163,11 +176,14 @@ def cardinal_tools(config, aux_lm) -> list:
             raise RuntimeError("No user is available to answer questions.")
         return config.user.ask(question)
 
-    # Tools without an implementation yet get the _not_ready stand-in.
     fns = {"search_emails": search_emails, "read_email": read_email, "email_qa": email_qa,
            "daily_digest": daily_digest, "search_docs": search_docs, "read_doc": read_doc,
            "run_terminal": run_terminal, "ask_user": ask_user}
-    return [cardinal_spec(name, DESCRIPTIONS[name], fns.get(name) or _not_ready(name)) for name in CARDINAL_TOOLS]
+    # The memory tools work over the store in config.memory_dir; without one they are unavailable.
+    if config.memory_dir is not None:
+        memory = MemoryStore(config.memory_dir)
+        fns.update(remember=memory.remember, recall=memory.recall)
+    return [cardinal_spec(name, DESCRIPTIONS[name], fns.get(name) or _unavailable(name)) for name in CARDINAL_TOOLS]
 
 
 def session_tools(tools, config, aux_lm) -> list:

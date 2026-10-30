@@ -2,10 +2,12 @@
 
 The model's context is a list of system/user/assistant messages. A tool result
 or an error goes back to the model as a user message. A reply with no tool call
-is the final answer, except an empty one or one that only announces an action
-("I'll look that up."): the loop sends it back as an error counted as malformed.
+is the final answer, except an empty one, one that only announces an action
+("I'll look that up.") or one that leaks the model's built-in call format: the
+loop sends it back as an error counted as malformed.
 Before each model call, compaction.py shortens the context if the call would not
-fit config.context_budget (Problem 11).
+fit config.context_budget (Problem 11). A session with config.memory_dir starts
+with its saved facts at the end of the system prompt (memory.py, Problem 12).
 """
 
 from __future__ import annotations
@@ -14,6 +16,7 @@ import copy
 import re
 
 from cs329z_hw1.agent.compaction import RESULT_SHARE, compact, payload, shorten
+from cs329z_hw1.agent.memory import MEMORY_SHARE, MemoryStore
 from cs329z_hw1.agent.tool_registry import ToolRegistry
 from cs329z_hw1.agent.tool_protocol import format_tool_result, parse_response, render_tools
 from cs329z_hw1.llm import OutputTruncated
@@ -45,6 +48,9 @@ explains why: fix the call and try again.
 ANNOUNCEMENT = re.compile(
     r"(I['’]ll|I will|I['’]m going to|I am going to|I['’]m (checking|looking|searching)|"
     r"Let me|Let['’]s|Searching|Checking|Looking)\b", re.I)
+# A reply that leaks the model's built-in call format, a bare JSON object or a special
+# token such as <|tool_call|>, is not an answer either.
+LEAKED_CALL = re.compile(r"^\s*\{|<\|\w+\|>")
 INVALID_ANSWER = ("Your reply has no tool call and no answer. There is no built-in function calling: "
                   "write the call block in your reply text, as described under \"## How to call a tool\", "
                   "or give your final answer.")
@@ -58,7 +64,9 @@ class AgentSession:
         self.mode = config.mode
         self.registry = ToolRegistry(tools)
         self.transcript: list[dict] = []
-        self.system = f"{SYSTEM_PROMPT}\n\n{render_tools(self.registry.schemas())}"
+        memory = (MemoryStore(config.memory_dir).prompt(config.context_budget // MEMORY_SHARE)
+                  if config.memory_dir is not None else "")
+        self.system = f"{SYSTEM_PROMPT}\n\n{render_tools(self.registry.schemas())}{memory}"
         # The messages after the system prompt, each with its transcript event (see compaction.py),
         # and the summary of the turns that compaction replaced.
         self.context: list[dict] = []
@@ -99,8 +107,9 @@ class AgentSession:
                     # The call could not be parsed.
                     self._error(parsed.error)
                     malformed += 1
-                elif parsed.tool_call is None and (not parsed.text or ANNOUNCEMENT.match(parsed.text)):
-                    # No call, and the reply is empty or only announces an action.
+                elif parsed.tool_call is None and (not parsed.text or ANNOUNCEMENT.match(parsed.text)
+                                                   or LEAKED_CALL.search(parsed.text)):
+                    # No call, and the reply is empty, only announces an action or leaks a call.
                     self._error(INVALID_ANSWER)
                     malformed += 1
                 elif parsed.tool_call is None:
