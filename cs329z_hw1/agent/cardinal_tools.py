@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import functools
 
-from cs329z_hw1 import data
+from cs329z_hw1 import data, sandbox
 from cs329z_hw1.agent.search_docs import doc_index
 from cs329z_hw1.agent.terminal import run_command
 from cs329z_hw1.cardinal import CARDINAL_TOOLS, cardinal_spec
@@ -54,21 +54,11 @@ DESCRIPTIONS = {
     ),
     "run_terminal": (
         "Run one bash command in a sandboxed workspace and return its exit code, stdout and stderr. "
-        "The workspace holds emails.jsonl, the whole email archive with one JSON object per email "
-        "(id, thread_id, reply_to, from, to, date, subject, body), and docs/, the company documents. "
+        "The workspace holds emails.jsonl, the email archive with one JSON object per line (id, "
+        "thread_id, reply_to, from, to, date, subject, body), and docs/, the company documents. " ""
         "Use it for exact counts and computations, which the search tools cannot give. "
         "There is no network. Write longer scripts as python3 -c '...' (standard library only). "
-        "Long output is cut, and the whole output is saved to a file whose path the result gives"
-    ),
-    "run_terminal": (
-        "Run one bash command in a sandboxed workspace and return its exit code, stdout and stderr. "
-        "The workspace holds emails.jsonl, the email archive with one JSON object per line (id, "
-        "thread_id, reply_to, from, to, date, subject, body; dates are UTC, like 2001-06-01T00:03:01Z), "
-        "and docs/, the company documents. Use it for exact counts and computations over all emails. "
-        "Only common tools such as python3, grep, awk, sed, sort, uniq, wc and jq are allowed, with no "
-        "network. $(...), backticks, << and variable assignments are rejected, so write scripts as "
-        "python3 -c '...' (standard library only). Long output is cut, and the whole output is saved "
-        "to a file whose path the result gives."
+        "Long output is cut, and the whole output is saved to a file whose path the result gives."
     ),
     "remember": "Save a fact to long-term memory so that later conversations can use it.",
     "recall": "Search long-term memory for facts saved earlier.",
