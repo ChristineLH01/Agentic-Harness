@@ -14,8 +14,8 @@ from cs329z_hw1.types import Approval, ToolResult
 
 def denial(registry, call, mode: str, user) -> ToolResult | None:
     """The "denied" result of a call the user does not approve, or None if it may run.
-    A call the registry rejects is not sent for approval."""
-    if mode != "confirm" or registry.validate(call.name, call.args) or registry.tools[call.name].read_only:
+    The loop validates the call first, so a call the registry rejects is never sent for approval."""
+    if mode != "confirm" or registry.tools[call.name].read_only:
         return None
     approval = user.approve(call) if user is not None else Approval(False, "No user is available to approve it.")
     if approval.approved:
