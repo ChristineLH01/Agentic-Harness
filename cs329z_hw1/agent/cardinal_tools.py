@@ -56,11 +56,12 @@ DESCRIPTIONS = {
     ),
     "run_terminal": (
         "Run one bash command in a sandboxed workspace and return its exit code, stdout and stderr. "
-        "The workspace holds emails.jsonl, the email archive with one JSON object per line (id, "
-        "thread_id, reply_to, from, to, date, subject, body), and docs/, the company documents. "
-        "Use it for exact counts and computations, which the search tools cannot give. "
-        "There is no network. Write longer scripts as python3 -c '...' (standard library only). "
-        "Long output is cut, and the whole output is saved to a file whose path the result gives."
+        "Use it to write and run code or commands for tasks the search and read tools cannot do, "
+        "such as exact counts and computations. The command runs inside the workspace, which holds "
+        "emails.jsonl, the email archive with one JSON object per line (id, thread_id, reply_to, "
+        "from, to, date, subject, body), and docs/, the company documents, so use these relative "
+        "paths. There is no network. Write longer scripts as python3 -c '...' (standard library "
+        "only). Long output is cut, and the whole output is saved to a file whose path the result gives."
     ),
     "remember": (
         "Save one fact to your persistent memory, which is shared across sessions: a new session "
