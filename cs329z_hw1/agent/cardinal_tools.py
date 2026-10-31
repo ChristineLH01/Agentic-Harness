@@ -75,10 +75,11 @@ DESCRIPTIONS = {
         "does not show."
     ),
     "ask_user": (
-        "Ask the user one short question and return their answer. Use it when a request can mean "
-        "different things and the answer depends on which, for example \"Do you mean the expense "
-        "policy from March or the one it replaced?\", instead of guessing. Do not ask for facts "
-        "you can look up."
+        "Ask the user one short question and return their answer. Use it before acting when the "
+        "answer depends on something only the user knows: who they are, for example whose inbox "
+        "\"my emails\" means, or which of several things they mean, for example \"Do you mean the "
+        "expense policy from March or the one it replaced?\". Do not guess these. Do not ask for "
+        "company facts you can look up."
     ),
 }
 
